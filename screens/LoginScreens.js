@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,30 +9,32 @@ import {
   Keyboard,
   Dimensions,
   Platform,
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import axios from 'axios';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import axios from "axios";
+import Icon from "react-native-vector-icons/MaterialIcons";
+import { API_BASE_URL } from "@env";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 
 export default function LoginScreens() {
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const navigation = useNavigation();
 
   const handlePasswordChange = (text) => {
     setPassword(text);
     if (!text) {
-      setPasswordError('');
+      setPasswordError("");
     } else if (text.length < 6) {
-      setPasswordError('Le mot de passe doit contenir au moins 6 caractères');
+      setPasswordError("Le mot de passe doit contenir au moins 6 caractères");
     } else if (!/(?=.*\d)(?=.*[a-z])(?=.*[A-Z])/.test(text)) {
-      setPasswordError('Il faut une majuscule, une minuscule et un chiffre');
+      setPasswordError("Il faut une majuscule, une minuscule et un chiffre");
     } else {
-      setPasswordError('');
+      setPasswordError("");
     }
   };
 
@@ -46,21 +48,32 @@ export default function LoginScreens() {
 
     try {
       const response = await axios.post(
-        'http://localhost:5000/api/utilisateur/login',
+        `${API_BASE_URL}/api/utilisateur/login`,
         loginData,
         {
-          headers: { 'Content-Type': 'application/json' },
+          headers: { "Content-Type": "application/json" },
           withCredentials: true,
         }
       );
 
-      Alert.alert('Succès', 'Connexion réussie !', [
-        { text: 'OK', onPress: () => navigation.replace('Main') },
+      const data = response.data;
+
+      // Sauvegarde des infos dans AsyncStorage
+      await AsyncStorage.setItem(
+        "utilisateur_id",
+        data.id_utilisateur.toString()
+      );
+      await AsyncStorage.setItem("role_utilisateur", data.role_utilisateur);
+      await AsyncStorage.setItem("email_utilisateur", email);
+
+      // Redirection
+      Alert.alert("Succès", "Connexion réussie !", [
+        { text: "OK", onPress: () => navigation.replace("Dashboard") },
       ]);
     } catch (error) {
       Alert.alert(
-        'Erreur',
-        error.response?.data?.message || 'Email ou mot de passe incorrect.'
+        "Erreur",
+        error.response?.data?.message || "Email ou mot de passe incorrect."
       );
     }
   };
@@ -95,16 +108,21 @@ export default function LoginScreens() {
           onPress={() => setShowPassword(!showPassword)}
         >
           <Icon
-            name={showPassword ? 'visibility-off' : 'visibility'}
+            name={showPassword ? "visibility-off" : "visibility"}
             size={22}
             color="#555"
           />
         </TouchableOpacity>
       </View>
 
-      {passwordError !== '' && (
+      {passwordError !== "" && (
         <View style={styles.errorMessageContainer}>
-          <Icon name="error-outline" size={16} color="red" style={styles.errorIcon} />
+          <Icon
+            name="error-outline"
+            size={16}
+            color="red"
+            style={styles.errorIcon}
+          />
           <Text style={styles.errorText}>{passwordError}</Text>
         </View>
       )}
@@ -114,8 +132,11 @@ export default function LoginScreens() {
       </TouchableOpacity>
 
       <Text style={styles.registerText}>
-        Pas encore inscrit ?{' '}
-        <Text style={styles.link} onPress={() => navigation.navigate('Register')}>
+        Pas encore inscrit ?{" "}
+        <Text
+          style={styles.link}
+          onPress={() => navigation.navigate("Register")}
+        >
           Créer un compte
         </Text>
       </Text>
@@ -127,44 +148,44 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: width * 0.07,
-    justifyContent: 'center',
-    backgroundColor: '#f9f9f9',
+    justifyContent: "center",
+    backgroundColor: "#f9f9f9",
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginBottom: 35,
-    textAlign: 'center',
+    textAlign: "center",
   },
   input: {
     height: 48,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     fontSize: 16,
     marginBottom: 16,
   },
   passwordInputWrapper: {
-    position: 'relative',
-    justifyContent: 'center',
+    position: "relative",
+    justifyContent: "center",
   },
   passwordInput: {
     paddingRight: 44,
   },
   iconRight: {
-    position: 'absolute',
+    position: "absolute",
     right: 12,
-    top: Platform.OS === 'ios' ? 14 : 12,
+    top: Platform.OS === "ios" ? 14 : 12,
   },
   inputError: {
-    borderColor: 'red',
+    borderColor: "red",
   },
   errorMessageContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: -10,
     marginBottom: 10,
     paddingLeft: 4,
@@ -173,34 +194,34 @@ const styles = StyleSheet.create({
     marginRight: 5,
   },
   errorText: {
-    color: 'red',
+    color: "red",
     fontSize: 13,
   },
   button: {
-    backgroundColor: '#0066cc',
+    backgroundColor: "#0066cc",
     paddingVertical: 14,
     borderRadius: 8,
     marginTop: 10,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     elevation: 2,
   },
   buttonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 17,
-    textAlign: 'center',
-    fontWeight: '600',
+    textAlign: "center",
+    fontWeight: "600",
   },
   registerText: {
     marginTop: 24,
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 14,
-    color: '#333',
+    color: "#333",
   },
   link: {
-    color: '#0066cc',
-    fontWeight: 'bold',
+    color: "#0066cc",
+    fontWeight: "bold",
   },
 });
