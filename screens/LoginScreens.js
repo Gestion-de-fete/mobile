@@ -70,11 +70,13 @@ export default function LoginScreens() {
       Alert.alert("Succès", "Connexion réussie !", [
         { text: "OK", onPress: () => navigation.replace("Dashboard") },
       ]);
+
     } catch (error) {
       Alert.alert(
         "Erreur",
         error.response?.data?.message || "Email ou mot de passe incorrect."
       );
+
     }
   };
 

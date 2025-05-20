@@ -83,7 +83,7 @@ export default function RegisterScreens() {
     };
 
     try {
-   const response = await fetch(`${API_BASE_URL}/api/utilisateur/`, {
+   const response = await fetch(`${API_BASE_URL}/api/utilisateur`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(registrationData),

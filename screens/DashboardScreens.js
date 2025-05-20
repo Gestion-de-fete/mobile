@@ -14,6 +14,17 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import { API_BASE_URL } from '@env';
 
+// Fonction pour extraire le CIN à partir du texte scanné
+const extractCIN = (rawData) => {
+  const lines = rawData.split('\n');
+  for (const line of lines) {
+    if (line.startsWith('CIN:')) {
+      return line.replace('CIN:', '').trim();
+    }
+  }
+  return rawData.trim();
+};
+
 export default function DashboardScreen() {
   const navigation = useNavigation();
   const [permission, requestPermission] = useCameraPermissions();
@@ -23,51 +34,106 @@ export default function DashboardScreen() {
   const [hasFlash, setHasFlash] = useState(true);
   const [storedData, setStoredData] = useState({ role_utilisateur: null });
   const [isLoadingData, setIsLoadingData] = useState(true);
+ 
+const handleBarCodeScanned = useCallback(async ({ type, data }) => {
+  if (scanned) return;
+  setScanned(true);
 
-  const handleBarCodeScanned = useCallback(async ({ type, data }) => {
-    if (scanned) return;
-    setScanned(true);
+  try {
+    const utilisateur_id = await AsyncStorage.getItem("utilisateur_id");
+    const role_utilisateur = storedData.role_utilisateur;
 
-    try {
-      const utilisateur_id = await AsyncStorage.getItem("utilisateur_id");
-      const role_utilisateur = storedData.role_utilisateur;
+    // Extraction propre du CIN
+    const cinClient = extractCIN(data);
 
-      let endpoint = "";
-      if (role_utilisateur === "securite_entree") {
-        endpoint = "update_entree";
-      } else if (role_utilisateur === "securite_sortie") {
-        endpoint = "update_sortie";
-      } else {
-        Alert.alert("Erreur", "Rôle utilisateur non autorisé.");
+    // 1. Récupérer l’état actuel (entrée ou sortie)
+    const etatResponse = await fetch(`${API_BASE_URL}/api/entree_sortie/etat`);
+    const etatData = await etatResponse.json();
+
+    let etatFete = etatData.etat; // 'entree' ou 'sortie' ou null
+
+    if (!etatFete) {
+      // Aucun état défini, créer la fête
+      const createResponse = await fetch(`${API_BASE_URL}/api/entree_sortie/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id_utilisateur: utilisateur_id, cin_client: cinClient }),
+      });
+      const createData = await createResponse.json();
+
+      if (!createResponse.ok) {
+        Alert.alert("Erreur", createData.message || "Impossible de créer la fête.");
         setScanned(false);
         return;
       }
 
-      const response = await fetch(
-        `${API_BASE_URL}/api/entree_sortie/${endpoint}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            cin_client: data,
-            id_utilisateur: utilisateur_id,
-          }),
-        }
-      );
-
-      const result = await response.json();
-
-      Alert.alert(
-        response.ok ? "Succès" : "Échec",
-        result.message || "Une réponse a été reçue.",
-        [{ text: "OK", onPress: () => setScanned(false) }]
-      );
-    } catch (error) {
-      console.error("Erreur API:", error);
-      Alert.alert("Erreur", "Une erreur s’est produite.");
+      Alert.alert("Fête créée", "Vous pouvez maintenant enregistrer les entrées et sorties.");
       setScanned(false);
+      return;
     }
-  }, [scanned, storedData]);
+
+    // 2. Logique selon rôle + état
+    let action = null;
+
+    if (role_utilisateur === "securite_entree") {
+      if (etatFete === "sortie") {
+        action = "entree"; // Autorisé à entrer après une sortie
+      } else if (etatFete === "entree") {
+        Alert.alert("Accès refusé", "Le client est déjà entré, il ne peut pas entrer deux fois de suite.");
+        setScanned(false);
+        return;
+      } else {
+        Alert.alert("Erreur", "État de la fête inconnu.");
+        setScanned(false);
+        return;
+      }
+    } else if (role_utilisateur === "securite_sortie") {
+      if (etatFete === "entree") {
+        action = "sortie"; // Autorisé à sortir après une entrée
+      } else if (etatFete === "sortie") {
+        Alert.alert("Accès refusé", "Le client est déjà sorti, il ne peut pas sortir deux fois de suite.");
+        setScanned(false);
+        return;
+      } else {
+        Alert.alert("Erreur", "État de la fête inconnu.");
+        setScanned(false);
+        return;
+      }
+    } else {
+      Alert.alert("Erreur", "Rôle utilisateur non autorisé.");
+      setScanned(false);
+      return;
+    }
+
+    // 3. Appel API pour enregistrer l'entrée ou la sortie
+    const response = await fetch(`${API_BASE_URL}/api/entree_sortie/${action}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cin_client: cinClient,
+        id_utilisateur: utilisateur_id,
+      }),
+    });
+
+    const result = await response.json();
+
+    Alert.alert(
+      response.ok ? "Succès" : "Erreur",
+      result.message || `Action ${action} effectuée.`,
+      [{ text: "OK", onPress: () => setScanned(false) }]
+    );
+
+  } catch (error) {
+    console.error("Erreur API:", error);
+    Alert.alert("Erreur", "Une erreur s’est produite.");
+    setScanned(false);
+  }
+
+  // Permet de scanner de nouveau après 3 secondes
+  setTimeout(() => setScanned(false), 3000);
+}, [scanned, storedData]);
+
+
 
   useEffect(() => {
     const loadStoredData = async () => {
