@@ -12,17 +12,11 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import Icon from "react-native-vector-icons/Feather";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
-import { API_BASE_URL } from '@env';
 
-// Fonction pour extraire le CIN à partir du texte scanné
 const extractCIN = (rawData) => {
-  const lines = rawData.split('\n');
-  for (const line of lines) {
-    if (line.startsWith('CIN:')) {
-      return line.replace('CIN:', '').trim();
-    }
-  }
-  return rawData.trim();
+  const regex = /CIN:\s*(.+)/i; // Regexp pour détecter "CIN:" + espace(s) + valeur
+  const match = rawData.match(regex);
+  return match ? match[1].trim() : rawData.trim(); // Retourne CIN ou tout le texte si non trouvé
 };
 
 export default function DashboardScreen() {
@@ -34,105 +28,71 @@ export default function DashboardScreen() {
   const [hasFlash, setHasFlash] = useState(true);
   const [storedData, setStoredData] = useState({ role_utilisateur: null });
   const [isLoadingData, setIsLoadingData] = useState(true);
- 
-const handleBarCodeScanned = useCallback(async ({ type, data }) => {
-  if (scanned) return;
-  setScanned(true);
 
-  try {
-    const utilisateur_id = await AsyncStorage.getItem("utilisateur_id");
-    const role_utilisateur = storedData.role_utilisateur;
+  const handleBarCodeScanned = useCallback(
+  async ({ type, data }) => {
+    if (scanned) return;
+    setScanned(true);
 
-    // Extraction propre du CIN
-    const cinClient = extractCIN(data);
+    try {
+      const utilisateur_id = await AsyncStorage.getItem("utilisateur_id");
+      const role_utilisateur = storedData.role_utilisateur;
 
-    // 1. Récupérer l’état actuel (entrée ou sortie)
-    const etatResponse = await fetch(`${API_BASE_URL}/api/entree_sortie/etat`);
-    const etatData = await etatResponse.json();
+      const cinClient = extractCIN(data);
 
-    let etatFete = etatData.etat; // 'entree' ou 'sortie' ou null
+      const etatResponse = await fetch(
+        `http://192.168.1.167:5000/api/entree_sortie/etat`
+      );
+      const etatData = await etatResponse.json();
+      const etatFete = etatData.etat; // 'entree', 'sortie' ou null
 
-    if (!etatFete) {
-      // Aucun état défini, créer la fête
-      const createResponse = await fetch(`${API_BASE_URL}/api/entree_sortie/create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id_utilisateur: utilisateur_id, cin_client: cinClient }),
-      });
-      const createData = await createResponse.json();
+      console.log("QR brut :", data);
+      console.log("CIN extrait :", cinClient);
+      console.log("État actuel :", etatFete);
+      console.log("Rôle :", role_utilisateur);
 
-      if (!createResponse.ok) {
-        Alert.alert("Erreur", createData.message || "Impossible de créer la fête.");
-        setScanned(false);
-        return;
-      }
+      let action = null;
 
-      Alert.alert("Fête créée", "Vous pouvez maintenant enregistrer les entrées et sorties.");
-      setScanned(false);
-      return;
-    }
-
-    // 2. Logique selon rôle + état
-    let action = null;
-
-    if (role_utilisateur === "securite_entree") {
-      if (etatFete === "sortie") {
-        action = "entree"; // Autorisé à entrer après une sortie
-      } else if (etatFete === "entree") {
-        Alert.alert("Accès refusé", "Le client est déjà entré, il ne peut pas entrer deux fois de suite.");
-        setScanned(false);
-        return;
+      if (etatFete === "sortie" && role_utilisateur === "securite_entree") {
+        action = "entree";
+      } else if (etatFete === "entree" && role_utilisateur === "securite_sortie") {
+        action = "sortie";
       } else {
-        Alert.alert("Erreur", "État de la fête inconnu.");
+        Alert.alert(
+          "Accès refusé",
+          "Action non autorisée selon l’état actuel ou votre rôle."
+        );
         setScanned(false);
         return;
       }
-    } else if (role_utilisateur === "securite_sortie") {
-      if (etatFete === "entree") {
-        action = "sortie"; // Autorisé à sortir après une entrée
-      } else if (etatFete === "sortie") {
-        Alert.alert("Accès refusé", "Le client est déjà sorti, il ne peut pas sortir deux fois de suite.");
-        setScanned(false);
-        return;
-      } else {
-        Alert.alert("Erreur", "État de la fête inconnu.");
-        setScanned(false);
-        return;
-      }
-    } else {
-      Alert.alert("Erreur", "Rôle utilisateur non autorisé.");
+
+      const response = await fetch(
+        `http://192.168.1.167:5000/api/entree_sortie/${action}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cin_client: cinClient,
+            id_utilisateur: utilisateur_id,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      Alert.alert(
+        response.ok ? "Succès" : "Erreur",
+        result.message || `Action ${action} effectuée.`,
+        [{ text: "OK", onPress: () => setScanned(false) }]
+      );
+    } catch (error) {
+      console.error("Erreur API:", error);
+      Alert.alert("Erreur", "Une erreur s’est produite.");
       setScanned(false);
-      return;
     }
-
-    // 3. Appel API pour enregistrer l'entrée ou la sortie
-    const response = await fetch(`${API_BASE_URL}/api/entree_sortie/${action}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        cin_client: cinClient,
-        id_utilisateur: utilisateur_id,
-      }),
-    });
-
-    const result = await response.json();
-
-    Alert.alert(
-      response.ok ? "Succès" : "Erreur",
-      result.message || `Action ${action} effectuée.`,
-      [{ text: "OK", onPress: () => setScanned(false) }]
-    );
-
-  } catch (error) {
-    console.error("Erreur API:", error);
-    Alert.alert("Erreur", "Une erreur s’est produite.");
-    setScanned(false);
-  }
-
-  // Permet de scanner de nouveau après 3 secondes
-  setTimeout(() => setScanned(false), 3000);
-}, [scanned, storedData]);
-
+  },
+  [scanned, storedData]
+);
 
 
   useEffect(() => {
@@ -174,13 +134,15 @@ const handleBarCodeScanned = useCallback(async ({ type, data }) => {
     ]);
   }, [handleLogout]);
 
-  const increaseZoom = useCallback(() =>
-    setZoom((prev) => Math.min(1, parseFloat((prev + 0.1).toFixed(1))))
-  , []);
+  const increaseZoom = useCallback(
+    () => setZoom((prev) => Math.min(1, parseFloat((prev + 0.1).toFixed(1)))),
+    []
+  );
 
-  const decreaseZoom = useCallback(() =>
-    setZoom((prev) => Math.max(0, parseFloat((prev - 0.1).toFixed(1))))
-  , []);
+  const decreaseZoom = useCallback(
+    () => setZoom((prev) => Math.max(0, parseFloat((prev - 0.1).toFixed(1)))),
+    []
+  );
 
   const toggleFlash = useCallback(() => {
     if (hasFlash) {
@@ -195,12 +157,17 @@ const handleBarCodeScanned = useCallback(async ({ type, data }) => {
       {!permission ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.infoText}>Chargement de la permission caméra...</Text>
+          <Text style={styles.infoText}>
+            Chargement de la permission caméra...
+          </Text>
         </View>
       ) : !permission.granted ? (
         <View style={styles.centered}>
           <Text style={styles.errorText}>L'accès à la caméra est refusé</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={requestPermission}>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={requestPermission}
+          >
             <Text style={styles.retryButtonText}>Redemander l'accès</Text>
           </TouchableOpacity>
         </View>
@@ -213,8 +180,15 @@ const handleBarCodeScanned = useCallback(async ({ type, data }) => {
               <ActivityIndicator size="small" color="#007AFF" />
             ) : (
               <View style={styles.dataRow}>
-                <Icon name="user" size={20} color="#555" style={styles.dataIcon} />
-                <Text style={styles.dataText}>Rôle : {storedData.role_utilisateur}</Text>
+                <Icon
+                  name="user"
+                  size={20}
+                  color="#555"
+                  style={styles.dataIcon}
+                />
+                <Text style={styles.dataText}>
+                  Rôle : {storedData.role_utilisateur}
+                </Text>
               </View>
             )}
           </View>
@@ -231,7 +205,9 @@ const handleBarCodeScanned = useCallback(async ({ type, data }) => {
           </View>
 
           <View style={styles.zoomTextContainer}>
-            <Text style={styles.zoomText}>Zoom : {(zoom * 100).toFixed(0)}%</Text>
+            <Text style={styles.zoomText}>
+              Zoom : {(zoom * 100).toFixed(0)}%
+            </Text>
           </View>
 
           <View style={styles.controls}>

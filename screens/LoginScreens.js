@@ -13,8 +13,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import axios from "axios";
 import Icon from "react-native-vector-icons/MaterialIcons";
-import { API_BASE_URL } from "@env";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 
@@ -48,7 +47,7 @@ export default function LoginScreens() {
 
     try {
       const response = await axios.post(
-        `${API_BASE_URL}/api/utilisateur/login`,
+        `http://192.168.1.167:5000/api/utilisateur/login`,
         loginData,
         {
           headers: { "Content-Type": "application/json" },
@@ -70,13 +69,11 @@ export default function LoginScreens() {
       Alert.alert("Succès", "Connexion réussie !", [
         { text: "OK", onPress: () => navigation.replace("Dashboard") },
       ]);
-
     } catch (error) {
       Alert.alert(
         "Erreur",
         error.response?.data?.message || "Email ou mot de passe incorrect."
       );
-
     }
   };
 

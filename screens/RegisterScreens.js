@@ -13,7 +13,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { Picker } from "@react-native-picker/picker";
 import Icon from "react-native-vector-icons/MaterialIcons";
-import { API_BASE_URL } from '@env';
+import axios from 'axios';
 
 export default function RegisterScreens() {
   const [showPassword, setShowPassword] = useState(false);
@@ -53,55 +53,51 @@ export default function RegisterScreens() {
   };
 
   const handleSubmit = async () => {
-    if (
-      !username ||
-      !prenom ||
-      !email ||
-      !password ||
-      !confirmPassword ||
-      !role
-    ) {
-      Alert.alert("Champs requis", "Veuillez remplir tous les champs");
-      return;
-    }
+  if (!username || !prenom || !email || !password || !confirmPassword || !role) {
+    Alert.alert("Champs requis", "Veuillez remplir tous les champs");
+    return;
+  }
 
-    if (passwordError || confirmError) {
-      Alert.alert(
-        "Erreur de mot de passe",
-        "Veuillez vérifier les mots de passe"
-      );
-      return;
-    }
+  if (passwordError || confirmError) {
+    Alert.alert("Erreur de mot de passe", "Veuillez vérifier les mots de passe");
+    return;
+  }
 
-    const registrationData = {
-      nom_utilisateur: username,
-      prenom_utilisateur: prenom,
-      email_utilisateur: email,
-      role_utilisateur: role,
-      mot_de_passe_utilisateur: password,
-      statut_utilisateur: "en attente",
-    };
-
-    try {
-   const response = await fetch(`${API_BASE_URL}/api/utilisateur`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(registrationData),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        Alert.alert("Succès", "Inscription réussie !");
-        navigation.navigate("Login");
-      } else {
-        Alert.alert("Erreur", data.message || "Erreur lors de l'inscription");
-      }
-    } catch (error) {
-      console.error("Erreur d'inscription:", error);
-      Alert.alert("Erreur", "Erreur de connexion au serveur.");
-    }
+  const registrationData = {
+    nom_utilisateur: username,
+    prenom_utilisateur: prenom,
+    email_utilisateur: email,
+    role_utilisateur: role,
+    mot_de_passe_utilisateur: password,
+    statut_utilisateur: "en attente",
   };
+
+  try {
+    const response = await axios.post(`http://192.168.1.167:5000/api/utilisateur`, registrationData);
+
+    if (response.status === 200 || response.status === 201) {
+      Alert.alert("Succès", "Inscription réussie !");
+      navigation.navigate("Login");
+    } else {
+      Alert.alert("Erreur", response.data.message || "Erreur lors de l'inscription");
+    }
+  } catch (error) {
+    console.error("Erreur d'inscription:", error);
+
+    if (error.response) {
+      // Erreur envoyée par le serveur (ex: 400 ou 500)
+      const message = error.response.data.message || "Erreur du serveur";
+      Alert.alert("Erreur", message);
+    } else if (error.request) {
+      // Pas de réponse du serveur
+      Alert.alert("Erreur", "Aucune réponse du serveur. Vérifiez l'URL ou la connexion.");
+    } else {
+      // Autre erreur
+      Alert.alert("Erreur", "Une erreur s'est produite.");
+    }
+  }
+};
+
 
   return (
     <KeyboardAvoidingView
