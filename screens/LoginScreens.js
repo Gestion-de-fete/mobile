@@ -37,45 +37,44 @@ export default function LoginScreens() {
     }
   };
 
-  const handleLogin = async () => {
-    Keyboard.dismiss();
+ const handleLogin = async () => {
+  Keyboard.dismiss();
 
-    const loginData = {
-      email_utilisateur: email,
-      mot_de_passe_utilisateur: password,
-    };
-
-    try {
-      const response = await axios.post(
-        `http://192.168.1.167:5000/api/utilisateur/login`,
-        loginData,
-        {
-          headers: { "Content-Type": "application/json" },
-          withCredentials: true,
-        }
-      );
-
-      const data = response.data;
-
-      // Sauvegarde des infos dans AsyncStorage
-      await AsyncStorage.setItem(
-        "utilisateur_id",
-        data.id_utilisateur.toString()
-      );
-      await AsyncStorage.setItem("role_utilisateur", data.role_utilisateur);
-      await AsyncStorage.setItem("email_utilisateur", email);
-
-      // Redirection
-      Alert.alert("Succès", "Connexion réussie !", [
-        { text: "OK", onPress: () => navigation.replace("Dashboard") },
-      ]);
-    } catch (error) {
-      Alert.alert(
-        "Erreur",
-        error.response?.data?.message || "Email ou mot de passe incorrect."
-      );
-    }
+  const loginData = {
+    email_utilisateur: email,
+    mot_de_passe_utilisateur: password,
   };
+
+  try {
+    const response = await axios.post(
+      `http://192.168.88.236:5000/api/utilisateur/login`,
+      loginData,
+      {
+        headers: { "Content-Type": "application/json" },
+        withCredentials: true,
+      }
+    );
+
+    const data = response.data;
+
+    // Sauvegarde des infos dans AsyncStorage
+    await AsyncStorage.setItem("utilisateur_id", data.id_utilisateur.toString());
+    await AsyncStorage.setItem("role_utilisateur", data.role_utilisateur);
+    await AsyncStorage.setItem("email_utilisateur", email);
+
+    // ✅ Alerte avec icône "Succès"
+    Alert.alert("✅ Connexion réussie", "Bienvenue sur la plateforme !", [
+      { text: "OK", onPress: () => navigation.replace("Dashboard") },
+    ]);
+  } catch (error) {
+    // ❌ Alerte avec icône "Erreur"
+    Alert.alert(
+      "❌ Erreur de connexion",
+      error.response?.data?.message || "Email ou mot de passe incorrect."
+    );
+  }
+};
+
 
   return (
     <View style={styles.container}>

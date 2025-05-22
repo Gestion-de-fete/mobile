@@ -76,24 +76,24 @@ export default function RegisterScreens() {
     const response = await axios.post(`http://192.168.1.167:5000/api/utilisateur`, registrationData);
 
     if (response.status === 200 || response.status === 201) {
-      Alert.alert("Succès", "Inscription réussie !");
+      Alert.alert("✅ Succès", "Inscription réussie !");
       navigation.navigate("Login");
     } else {
-      Alert.alert("Erreur", response.data.message || "Erreur lors de l'inscription");
+      Alert.alert("❌ Erreur", response.data.message || "❌ Erreur lors de l'inscription");
     }
   } catch (error) {
-    console.error("Erreur d'inscription:", error);
+    console.error("❌ Erreur d'inscription:", error);
 
     if (error.response) {
       // Erreur envoyée par le serveur (ex: 400 ou 500)
-      const message = error.response.data.message || "Erreur du serveur";
-      Alert.alert("Erreur", message);
+      const message = error.response.data.message || "❌ Erreur du serveur";
+      Alert.alert("❌ Erreur", message);
     } else if (error.request) {
       // Pas de réponse du serveur
-      Alert.alert("Erreur", "Aucune réponse du serveur. Vérifiez l'URL ou la connexion.");
+      Alert.alert("❌ Erreur", "Aucune réponse du serveur. Vérifiez l'URL ou la connexion.");
     } else {
       // Autre erreur
-      Alert.alert("Erreur", "Une erreur s'est produite.");
+      Alert.alert("❌ Erreur", "Une erreur s'est produite.");
     }
   }
 };

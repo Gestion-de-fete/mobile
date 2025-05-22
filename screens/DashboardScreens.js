@@ -41,7 +41,7 @@ export default function DashboardScreen() {
       const cinClient = extractCIN(data);
 
       const etatResponse = await fetch(
-        `http://192.168.1.167:5000/api/entree_sortie/etat`
+        `http://192.168.88.236:5000/api/entree_sortie/etat`
       );
       const etatData = await etatResponse.json();
       const etatFete = etatData.etat; // 'entree', 'sortie' ou null
@@ -59,7 +59,7 @@ export default function DashboardScreen() {
         action = "sortie";
       } else {
         Alert.alert(
-          "Accès refusé",
+          "⛔ Accès refusé",
           "Action non autorisée selon l’état actuel ou votre rôle."
         );
         setScanned(false);
@@ -67,7 +67,7 @@ export default function DashboardScreen() {
       }
 
       const response = await fetch(
-        `http://192.168.1.167:5000/api/entree_sortie/${action}`,
+        `http://192.168.88.236:5000/api/entree_sortie/${action}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -81,13 +81,17 @@ export default function DashboardScreen() {
       const result = await response.json();
 
       Alert.alert(
-        response.ok ? "Succès" : "Erreur",
+        response.ok
+          ? action === "entree"
+            ? "🚪 Entrée réussie"
+            : "🔓 Sortie réussie"
+          : "❌ Erreur",
         result.message || `Action ${action} effectuée.`,
         [{ text: "OK", onPress: () => setScanned(false) }]
       );
     } catch (error) {
       console.error("Erreur API:", error);
-      Alert.alert("Erreur", "Une erreur s’est produite.");
+      Alert.alert("❌ Erreur", "Une erreur s’est produite.");
       setScanned(false);
     }
   },
