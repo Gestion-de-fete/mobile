@@ -41,7 +41,7 @@ export default function DashboardScreen() {
       const cinClient = extractCIN(data);
 
       const etatResponse = await fetch(
-        `http://192.168.88.236:5000/api/entree_sortie/etat`
+        `http://192.168.16.120:5000/api/entree_sortie/etat`
       );
       const etatData = await etatResponse.json();
       const etatFete = etatData.etat; // 'entree', 'sortie' ou null
@@ -67,7 +67,7 @@ export default function DashboardScreen() {
       }
 
       const response = await fetch(
-        `http://192.168.88.236:5000/api/entree_sortie/${action}`,
+        `http://192.168.16.120:5000/api/entree_sortie/${action}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -308,6 +308,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0, 122, 255, 0.3)",
     borderWidth: 3,
+     marginBottom: 20,
     borderColor: "#007AFF",
   },
   zoomTextContainer: {
@@ -354,6 +355,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
+    marginBottom: 30,
     width: "100%",
     elevation: 4,
   },

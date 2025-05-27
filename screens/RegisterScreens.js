@@ -73,7 +73,7 @@ export default function RegisterScreens() {
   };
 
   try {
-    const response = await axios.post(`http://192.168.1.167:5000/api/utilisateur`, registrationData);
+    const response = await axios.post(`http://192.168.16.120:5000/api/utilisateur`, registrationData);
 
     if (response.status === 200 || response.status === 201) {
       Alert.alert("✅ Succès", "Inscription réussie !");
